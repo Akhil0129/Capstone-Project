@@ -1,0 +1,636 @@
+---
+title: "R Notebook"
+output:
+  word_document: default
+  html_notebook: default
+  pdf_document: default
+---
+importing all the required libraries
+
+```{r}
+library("ISLR")
+library("caret")
+library("class")
+library("ggcorrplot")
+library("ggpubr")
+library("factoextra")
+library("e1071")
+library("dplyr")
+library("tidyverse")
+library("ggplot2")
+library("gmodels")
+library("esquisse")
+library("MASS")
+library("broom")
+library("modelr")
+library("Hmisc")
+library("missForest")
+library("rpart")
+library("rattle")
+library("pROC")
+library("ROCR")
+library("cutpointr")
+library("ROSE")
+```
+
+
+Data fields
+state, string. 2-letter code of the US state of customer residence
+account_length, numerical. Number of months the customer has been with the current telco provider
+area_code, string="area_code_AAA" where AAA = 3 digit area code.
+international_plan, (yes/no). The customer has international plan.
+voice_mail_plan, (yes/no). The customer has voice mail plan.
+number_vmail_messages, numerical. Number of voice-mail messages.
+total_day_minutes, numerical. Total minutes of day calls.
+total_day_calls, numerical. Total number of day calls.
+total_day_charge, numerical. Total charge of day calls.
+total_eve_minutes, numerical. Total minutes of evening calls.
+total_eve_calls, numerical. Total number of evening calls.
+total_eve_charge, numerical. Total charge of evening calls.
+total_night_minutes, numerical. Total minutes of night calls.
+total_night_calls, numerical. Total number of night calls.
+total_night_charge, numerical. Total charge of night calls.
+total_intl_minutes, numerical. Total minutes of international calls.
+total_intl_calls, numerical. Total number of international calls.
+total_intl_charge, numerical. Total charge of international calls
+number_customer_service_calls, numerical. Number of calls to customer service
+churn, (yes/no). Customer churn - target variable.
+
+
+Loading the dataset into the varaible named df.
+```{r}
+df <- read.csv("churn-bigml-80.csv")
+```
+
+
+```{r}
+colnames(df) <- c("State","Account_Length","Area_Code","International_Plan","Voice_Mail_Plan","Number_Vmail_Messages","Total_Day_Minutes","Total_Day_Calls","Total_Day_Charge","Total_Eve_Minutes","Total_Eve_Calls","Total_Eve_Charge","Total_Night_Minutes","Total_Night_Calls","Total_Night_Charge","Total_Intl_Minutes","Total_Intl_Calls","Total_Intl_Charge","Customer_Service_Calls","Churn")
+```
+
+
+
+
+Viewing the first ten entries in the dataset
+```{r}
+head(df,n=10)
+```
+
+
+Viewing the last ten entries in the dataset
+```{r}
+tail(df,n=10)
+```
+
+Getting the count of number of attributes in the dataset
+```{r}
+ncol(df)
+```
+
+Getting the count of number of rows in the dataset
+```{r}
+nrow(df)
+```
+
+
+Looking at the summary of the dataset to better understand the data
+```{r}
+summary(df)
+```
+Out of 20 columns 4 are categorical columns and 16 are numerical columns
+
+
+Looking at the structure of the dataset
+```{r}
+str(df)
+```
+
+Checking if they are Null values in the dataset
+```{r}
+colMeans(is.na(df))
+```
+
+Visually looking into dataset
+
+esquisser() - By calling this function we can easily create effective visuals without writing the R code
+
+
+1. Looking at the count of Churn column which is the target varaible
+```{r}
+ggplot(df) +
+  aes(x = Churn, fill = Churn) +
+  geom_bar() +
+  scale_fill_manual(
+    values = c(False = "#C9190D",
+    True = "#DB128F")
+  ) +
+  labs(x = "Churn", y = "Count", title = "Count of Churn") +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 20L,
+    face = "bold",
+    hjust = 0.5),
+    axis.title.y = element_text(size = 14L,
+    face = "bold"),
+    axis.title.x = element_text(size = 14L,
+    face = "bold")
+  )
+```
+
+Frequency Table
+```{r}
+ftable(df$Churn)
+```
+
+False value obtained from the frequency table
+```{r}
+Churn_False <- 2278/2666
+Churn_False
+```
+
+True value obtained from the frequency table
+```{r}
+Churn_True <- 388/2666
+Churn_True
+```
+By looking at the above graph and frequency table we can see that the dataset is imbalanced i.e. One of the class is having majority of the entries(False) while the other class is having less entries(True). 
+
+
+
+2. Looking at the count of international plan
+```{r}
+ggplot(df) +
+  aes(x = International_Plan, fill = International_Plan) +
+  geom_bar() +
+  scale_fill_manual(
+    values = c(No = "#BD180D",
+    Yes = "#C41582")
+  ) +
+  labs(
+    x = "International Plan",
+    y = "Count",
+    title = "Count Of International Plan"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 20L,
+    face = "bold",
+    hjust = 0.5),
+    axis.title.y = element_text(size = 14L,
+    face = "bold"),
+    axis.title.x = element_text(size = 14L,
+    face = "bold")
+  )
+```
+
+
+
+
+3. looking at the count of Area Code.
+
+Since the Area Code is the numerical variable we are converting into factor because it has 3 different class referring to 3 different areas.
+```{r}
+df$Area_Code <- as.factor(df$Area_Code)
+```
+
+```{r}
+ggplot(df) +
+  aes(x = Area_Code, fill = Area_Code) +
+  geom_bar() +
+  scale_fill_manual(
+    values = c(`408` = "#F8766D",
+    `415` = "#00C19F",
+    `510` = "#FF61C3")
+  ) +
+  labs(
+    x = "Area Code",
+    y = "Count",
+    title = "Count Of Area Code"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 20L,
+    face = "bold",
+    hjust = 0.5),
+    axis.title.y = element_text(size = 14L,
+    face = "bold"),
+    axis.title.x = element_text(size = 14L,
+    face = "bold")
+  )
+```
+Frequency Table
+```{r}
+ftable(df$Area_Code)
+```
+They are 3 different area codes 408,415,510 and they have 669,1318,679 entries respectively.
+
+
+4 Looking the count of Voice Mail Plan
+```{r}
+ggplot(df) +
+  aes(x = Voice_Mail_Plan, fill = Voice_Mail_Plan) +
+  geom_bar() +
+  scale_fill_manual(
+    values = c(No = "#CB1E12",
+    Yes = "#FF61C3")
+  ) +
+  labs(
+    x = "Voice Mail",
+    y = "Count",
+    title = "Count Of Voice Mail"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 20L,
+    face = "bold",
+    hjust = 0.5),
+    axis.title.y = element_text(size = 14L,
+    face = "bold"),
+    axis.title.x = element_text(size = 14L,
+    face = "bold")
+  )
+```
+
+Looking at the Churn Rate where factor being International Plan
+```{r}
+ggplot(df) +
+  aes(x = International_Plan, fill = Churn) +
+  geom_bar() +
+  scale_fill_manual(
+    values = c(False = "#D4CBCA",
+    True = "#6C0DBB")
+  ) +
+  labs(
+    x = "International Plan",
+    y = "Count",
+    title = "Churn Rate - Factor being International Plan"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 20L,
+    face = "bold",
+    hjust = 0.5),
+    axis.title.y = element_text(size = 14L,
+    face = "bold"),
+    axis.title.x = element_text(size = 14L,
+    face = "bold")
+  )
+```
+
+
+Looking at the Frequency Table Of International Plan and Churn
+```{r}
+ftable(df[,c(4,20)])
+```
+Total Number of People who took International Plan is around 270 and we can see that nearly 50% of them are Churning. 
+People who didn't avail International Plan is around 2400 and we can see that nearly 10% are Churning.
+So we can possibly say that International Plan may be an important factor for Customer getting Churn.
+
+
+```{r}
+nv <- sapply(df, is.numeric)
+cormat <- cor(df[,nv])
+ggcorrplot::ggcorrplot(cormat, title = "Correlation of Numeric Variables")
+```
+```{r}
+# Extract the relevant variables for clustering
+churn_cluster_data <- df[,c(6:19)]
+set.seed(123)
+# Normalize the data
+churn_cluster_data_norm <- preProcess(churn_cluster_data, method = "range")
+churn_cluster1<-predict(churn_cluster_data_norm, churn_cluster_data)
+summary(churn_cluster1)
+```
+```{r}
+#to find the optimal clusters for normalized data.
+fviz_nbclust(churn_cluster1, kmeans, method = "silhouette")
+fviz_nbclust(churn_cluster1, kmeans, method = "wss")
+```
+
+
+```{r}
+res.km <- kmeans(churn_cluster1, centers = 2, nstart = 25)
+# K-means clusters showing the group of each individuals
+fviz_cluster(res.km, data = churn_cluster_data)
+
+```
+
+
+Looking at the distribution of the numerical attributes, to check if the data is skewed or not
+
+1. Total Day Minutes
+```{r}
+hist(df$Total_Day_Minutes,main="Frequency Dist. of Total Day Minutes",xlab="Total Day Minutes")
+```
+
+```{r}
+Total_Day_Minutes <- skewness(df$Total_Day_Minutes)
+Total_Day_Minutes
+```
+
+2. Total Day Calls
+```{r}
+hist(df$Total_Day_Calls,main="Frequency Dist. of Total Day Calls",xlab="Total Day Calls")
+```
+
+```{r}
+Total_Day_Calls <- skewness(df$Total_Day_Calls)
+Total_Day_Calls
+```
+
+2. Total Day Charge
+```{r}
+hist(df$Total_Day_Charge,main="Frequency Dist. of Total Day Charge",xlab="Total Day Charge")
+```
+```{r}
+Total_Day_Charge <- skewness(df$Total_Day_Charge)
+Total_Day_Charge
+```
+
+
+4. Total eve minutes
+```{r}
+hist(df$Total_Eve_Minutes,main="Frequency Dist. of Total Eve Minutes",xlab="Total Eve Minutes")
+```
+
+```{r}
+Total_Eve_Minutes<- skewness(df$Total_Eve_Minutes)
+Total_Eve_Minutes
+```
+
+5. Total eve calls
+```{r}
+hist(df$Total_Eve_Calls,main="Frequency Dist. of Total Eve Calls",xlab="Total Eve Calls")
+```
+
+```{r}
+Total_Eve_Calls<- skewness(df$Total_Eve_Calls)
+Total_Eve_Calls
+```
+
+6.Total eve Charge
+```{r}
+hist(df$Total_Eve_Charge,main="Frequency Dist. of Total Eve charge",xlab="Total Eve Charge")
+```
+
+```{r}
+Total_Eve_Charge <- skewness(df$Total_Eve_Charge)
+Total_Eve_Charge
+```
+
+7. Total night minutes
+```{r}
+hist(df$Total_Night_Minutes,main="Frequency Dist. of Total Night Minutes",xlab="Total Night Minutes")
+```
+```{r}
+Total_Night_Minutes <- skewness(df$Total_Night_Minutes)
+Total_Night_Minutes
+```
+
+8. Total night calls
+```{r}
+hist(df$Total_Night_Calls,main="Frequency Dist. of Total Night Calls",xlab="Total Night Calls")
+```
+
+```{r}
+Total_Night_Calls <- skewness(df$Total_Night_Calls)
+Total_Night_Calls
+```
+
+9. Total night charge
+```{r}
+hist(df$Total_Night_Charge,main="Frequency Dist. of Total Night Charge",xlab="Total Night Charge")
+```
+
+```{r}
+Total_Night_Charge <- skewness(df$Total_Night_Charge)
+Total_Night_Charge
+```
+
+10. Total Intl minutes
+```{r}
+hist(df$Total_Intl_Minutes,main="Frequency Dist. of Total Intl Minutes",xlab="Total Intl Minutes")
+```
+
+```{r}
+Total_Intl_Minutes <- skewness(df$Total_Intl_Minutes)
+Total_Intl_Minutes
+
+```
+
+11. Total Intl calls
+```{r}
+hist(df$Total_Intl_Calls,main="Frequency Dist. of Total Intl Calls",xlab="Total Intl Calls")
+```
+```{r}
+Total_Intl_Calls <- skewness(df$Total_Intl_Calls)
+Total_Intl_Calls
+```
+
+12. Total Intl Charge
+```{r}
+hist(df$Total_Intl_Charge,main="Frequency Dist. of Total Intl Charge",xlab="Total Intl Charge")
+```
+
+```{r}
+Total_Intl_Charge <- skewness(df$Total_Intl_Charge)
+Total_Intl_Charge
+```
+International Calls, International Minutes, International Charge are the three attributes which aren't evenly distributed.
+Further actions - Establish the relation betweeen Independent attributes to the Target attribute Post which we can think of transforming the attributes if needed.
+
+
+ 
+
+# Data Cleaning
+
+Account Length is an attribute which we will not be using for the modelling so we are removing out of the dataset.
+```{r}
+df <- df[,-2]
+```
+
+
+
+
+# Data Transformation
+
+Converting the Boolean Categorical Variables into numerical variables.
+```{r}
+df$International_Plan <- ifelse(df$International_Plan=='Yes',1,0)
+df$Voice_Mail_Plan <- ifelse(df$Voice_Mail_Plan=='Yes',1,0)
+df$Churn <- ifelse(df$Churn=='True',1,0)
+```
+
+
+Converting the Target Variable into Factor
+```{r}
+df$Churn <- as.factor(df$Churn)
+```
+
+
+
+# Imbalanced Data
+```{r}
+df_balanced_over <- ovun.sample(Churn ~ ., data=df[,-1], method = "both", p=0.5, N = 4000, seed=123)$data
+
+ftable(df_balanced_over$Churn)
+```
+
+# Data Partition
+```{r}
+df_Train <- createDataPartition(df_balanced_over$Churn,p=0.75,list=F)
+Train <- df_balanced_over[df_Train,]
+Validate <- df_balanced_over[-df_Train,]
+```
+
+# Running the Decision Tree Model on train data
+```{r}
+set.seed(765)
+Dec_Tree.model <- rpart(Churn~.,data=Train,method="class")
+```
+
+# Testing the models over validation set
+```{r}
+#Predicting the decision tree model over the validation data to check the accuracy
+dec_validate <- predict(Dec_Tree.model,Validate,type ="prob")
+churn.dec.validate <- cbind(Validate,dec_validate)
+```
+
+# Optimal Threshold - Cut Off Point
+```{r}
+#Decision Tree
+ROC_pred_dec_test <- prediction(dec_validate[,2],churn.dec.validate$Churn)
+ROCR_perf_dec_test <- performance(ROC_pred_dec_test,'tpr','fpr')
+acc_dec_perf <- performance(ROC_pred_dec_test,"acc")
+ROC_pred_dec_test@cutoffs[[1]][which.max(acc_dec_perf@y.values[[1]])]
+```
+
+```{r}
+#AUC Value
+roc.curve(churn.dec.validate$Churn,dec_validate[,1], plotit = T)
+```
+
+
+```{r}
+#Decision Tree Model
+churn.dec.validate$prob <- as.factor(ifelse(churn.dec.validate$`1`>0.7777778,"yes","no"))
+```
+
+
+```{r}
+#Converting the churn column to yes and no
+churn.dec.validate$churn <- as.factor(ifelse(churn.dec.validate$Churn==1,"yes","no"))
+```
+
+
+```{r}
+#Decision Tree Model
+CrossTable(x=churn.dec.validate$prob,y=churn.dec.validate$churn,prop.chisq = F)
+```
+# Performance Metrics - Decision Tree
+
+# True Positive (TP) - 434
+# True Negative (TN) - 453
+# False Positive (FP) - 63
+# False Negative (FN) - 49
+
+# Accuracy = TP+TN/TP+TN+FP+FN = 434+453/999 = 88.78 %
+# Specificity (TNR) = TN/TN+FP = 453/453+63 = 87.70 %
+# Sensitivity (TPR) = TP/TP+FN = 434/434+49 = 89.85 %
+
+
+#  We try to use pruning to check if there's any rise in the accuracy
+
+
+```{r}
+
+printcp(Dec_Tree.model)
+plotcp(Dec_Tree.model)
+
+```
+
+
+# Pruning the decision tree model
+```{r}
+# Pre-Pruning
+
+Dec_Tree.model_preprun <- rpart(Churn ~ ., data = Train, method = "class", control = rpart.control(cp=0,minsplit = 50,maxdepth = 6))
+
+# predicting the  pre-pruned on the validation set
+churn.dec.validate.preprun <- predict(Dec_Tree.model_preprun, Validate, type = "prob")
+churn.dec.validate.preprun.df <- cbind(Validate,churn.dec.validate.preprun)
+```
+
+```{r}
+
+ROC_pred_dec.pre_test <- prediction(churn.dec.validate.preprun[,2],churn.dec.validate.preprun.df$Churn)
+ROCR_perf_dec.pre_test <- performance(ROC_pred_dec.pre_test,'tpr','fpr')
+acc_dec.pre_perf <- performance(ROC_pred_dec.pre_test,"acc")
+ROC_pred_dec.pre_test@cutoffs[[1]][which.max(acc_dec.pre_perf@y.values[[1]])]
+```
+
+```{r}
+#AUC Value
+roc.curve(churn.dec.validate.preprun.df$Churn,churn.dec.validate.preprun[,1], plotit = F)
+```
+
+```{r}
+#Calculating Accuracy
+churn.dec.validate.preprun.df$prob <- as.factor(ifelse(churn.dec.validate.preprun.df$`1`>0.5294118,1,0))
+
+accuracy_preprun <- mean(churn.dec.validate.preprun.df$Churn==churn.dec.validate.preprun.df$prob)
+accuracy_preprun
+```
+# Cross Table
+```{r}
+CrossTable(x=churn.dec.validate.preprun.df$prob,y=churn.dec.validate.preprun.df$Churn)
+```
+# Performance Metrics 
+
+# True Positive (TP) - 440
+# True Negative (TN) - 473
+# False Positive (FP) - 57
+# False Negative (FN) - 29
+
+# Accuracy = TP+TN/TP+TN+FP+FN = 440+473/999 = 91.39 %
+# Specificity (TNR) = TN/TN+FP = 473/473+57 = 89.24 %
+# Sensitivity (TPR) = TP/TP+FN = 440/440+29 = 93.81%
+
+
+
+
+
+# Prediction - Test Set
+```{r}
+#Test Data
+Test <- read.csv("churn-bigml-20.csv")
+
+Test <- Test[,-c(1,2)]
+
+colnames(Test) <- c("Area_Code","International_Plan","Voice_Mail_Plan","Number_Vmail_Messages","Total_Day_Minutes","Total_Day_Calls","Total_Day_Charge","Total_Eve_Minutes","Total_Eve_Calls","Total_Eve_Charge","Total_Night_Minutes","Total_Night_Calls","Total_Night_Charge","Total_Intl_Minutes","Total_Intl_Calls","Total_Intl_Charge","Customer_Service_Calls","Churn")
+
+Test$Area_Code <- as.factor(Test$Area_Code)
+
+
+Test$International_Plan <- ifelse(Test$International_Plan =="yes",1,0)
+Test$Voice_Mail_Plan <- ifelse(Test$Voice_Mail_Plan =="yes",1,0)
+
+
+dec.test <- predict(Dec_Tree.model_preprun,Test,type="prob")
+churn.dec.test <- cbind(Test,dec.test)
+
+
+churn.dec.test$Predictions <- as.factor(ifelse(churn.dec.test$`1`>0.5294118,"True","False"))
+
+
+churn.dec.test <- churn.dec.test[,-c(19:20)]
+
+
+accuracy_test <- mean(churn.dec.test$Churn==churn.dec.test$Predictions)
+accuracy_test
+```
+```
+
+
+
+
+
